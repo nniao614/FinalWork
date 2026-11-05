@@ -1,0 +1,39 @@
+# 所有实验共用的默认配置。具体实验的配置文件用 `_base_: base.yaml` 继承本文件，只写不同的部分。
+
+seed: 42
+device: auto            # auto / cuda / mps / cpu
+
+data:
+  dataset: sroie        # sroie / cord
+  processed_dir: data/processed
+  image_root: data      # jsonl 里的 image_path 相对于这个目录
+
+layoutlm:
+  model_name: microsoft/layoutlmv3-base
+  max_length: 512
+  batch_size: 4
+  grad_accum: 4
+  lr: 5.0e-5
+  epochs: 30
+  fp16: false
+  bf16: true            # 5060 Ti 支持 bf16
+
+vlm:
+  model_name: Qwen/Qwen2.5-VL-3B-Instruct
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.05
+    target_modules: [q_proj, k_proj, v_proj, o_proj]
+  lr: 1.0e-4
+  epochs: 3
+  batch_size: 1
+  grad_accum: 8
+  max_new_tokens: 256
+
+router:
+  field_confidence: min   # 字段置信度如何由词级概率聚合：min / mean / first
+  threshold: 0.9          # 只能在验证集上调，不能看测试集
+  calibrate: true         # 先做温度缩放校准再路由
+
+output_dir: outputs

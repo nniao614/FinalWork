@@ -2,6 +2,8 @@
 
 本科毕业设计。从票据/发票图像中抽取商家、日期、金额等关键字段。
 
+给 AI 编程助手的详细说明（数据约定、评估规则、已知问题）见 [AGENTS.md](AGENTS.md)。
+
 ## 方案概述
 
 1. **小模型抽取**：LayoutLMv3 对票据做字段抽取，并为每个字段输出置信度。
@@ -46,6 +48,7 @@ Windows 上安装 PyTorch：
 ```bash
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 pip install -r requirements.txt
+python scripts/check_env.py   # 检查显卡和依赖是否就绪
 ```
 
 ## 数据集
@@ -59,6 +62,7 @@ pip install -r requirements.txt
 
 ```bash
 # SROIE：把官方数据解压到 data/raw/sroie/{train,test}/{img,box,entities}
+# 官方没有验证集，脚本会用固定种子从训练集切出 10%
 python data/scripts/prepare_data.py sroie
 
 # CORD：自动从 HuggingFace 下载；国内网络可先设置镜像

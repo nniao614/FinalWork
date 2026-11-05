@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections import Counter
 from pathlib import Path
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Tuple
 
 from .schema import Sample, build_label_list, entity_types
 
@@ -23,6 +23,21 @@ def save_jsonl(samples: Iterable[Sample], path: Path) -> int:
 def load_jsonl(path: Path) -> List[Sample]:
     with open(path, encoding="utf-8") as f:
         return [Sample.from_dict(json.loads(line)) for line in f if line.strip()]
+
+
+def split_train_val(
+    samples: List[Sample], val_ratio: float, seed: int = 42
+) -> Tuple[List[Sample], List[Sample]]:
+    """按 id 排序后用固定种子打乱再切分，保证在任何机器上切出来都一样。"""
+    import random
+
+    ordered = sorted(samples, key=lambda s: s.id)
+    random.Random(seed).shuffle(ordered)
+    n_val = max(1, int(round(len(ordered) * val_ratio))) if ordered else 0
+    val, train = ordered[:n_val], ordered[n_val:]
+    for s in val:
+        s.split = "validation"
+    return sorted(train, key=lambda s: s.id), sorted(val, key=lambda s: s.id)
 
 
 def save_label_list(samples_by_split: Dict[str, List[Sample]], path: Path) -> List[str]:

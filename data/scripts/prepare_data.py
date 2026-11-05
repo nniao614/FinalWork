@@ -25,7 +25,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-from src.data.io import dataset_stats, save_jsonl, save_label_list  # noqa: E402
+from src.data.io import (  # noqa: E402
+    dataset_stats, save_jsonl, save_label_list, split_train_val)
 
 
 def main() -> None:
@@ -35,6 +36,9 @@ def main() -> None:
     ap.add_argument("--raw", type=Path, default=None, help="SROIE 原始数据目录")
     ap.add_argument("--hf-name", default=None, help="CORD 的 HF 名称或本地目录")
     ap.add_argument("--cache-dir", default=None)
+    ap.add_argument("--val-ratio", type=float, default=0.1,
+                    help="SROIE：从训练集切出验证集的比例")
+    ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--label-keys", action="store_true",
                     help="CORD：把 is_key 的提示词也标成实体（默认标 O）")
     args = ap.parse_args()
@@ -51,6 +55,11 @@ def main() -> None:
                 by_split[split] = load_sroie(raw, split, data_root=data_dir)
         if not by_split:
             sys.exit(f"在 {raw} 下没有找到 train/box 或 test/box，请检查目录结构")
+        # SROIE 官方没有验证集。路由阈值、早停等都要在验证集上调，
+        # 绝不能在测试集上调，所以这里从训练集固定切出一部分。
+        if "train" in by_split and args.val_ratio > 0:
+            by_split["train"], by_split["validation"] = split_train_val(
+                by_split["train"], args.val_ratio, args.seed)
     else:
         from src.data.cord import HF_NAME, load_cord
         for split in ["train", "validation", "test"]:

@@ -1,0 +1,9 @@
+# Windows 和 Mac 混用，统一用 LF 换行，避免每次提交都出现整文件改动
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.pdf binary

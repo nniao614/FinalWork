@@ -122,6 +122,20 @@ def test_roundtrip_labels_stats(tmp_path):
     assert stats["field_label_rate"] == {"ADDRESS": 1.0, "COMPANY": 1.0, "DATE": 1.0, "TOTAL": 1.0}
 
 
+def test_split_train_val_deterministic():
+    from src.data.io import split_train_val
+
+    def mk(i):
+        return Sample(f"s{i:03d}", "sroie", "train", "p", 1, 1)
+
+    a_tr, a_va = split_train_val([mk(i) for i in range(100)], 0.1, seed=42)
+    b_tr, b_va = split_train_val([mk(i) for i in reversed(range(100))], 0.1, seed=42)
+    assert [s.id for s in a_va] == [s.id for s in b_va]
+    assert len(a_va) == 10 and len(a_tr) == 90
+    assert all(s.split == "validation" for s in a_va)
+    assert not {s.id for s in a_tr} & {s.id for s in a_va}
+
+
 def test_normalize_and_bio():
     assert normalize_box([50, 60, 500, 600], 500, 600) == [100, 100, 1000, 1000]
     assert spans_to_bio(4, [("A", [1, 2]), ("B", [2, 3])]) == ["O", "B-A", "I-A", "B-B"]
