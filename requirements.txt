@@ -13,3 +13,4 @@ pandas
 pyyaml
 tqdm
 matplotlib
+pytest

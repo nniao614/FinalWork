@@ -14,7 +14,7 @@
 ```
 configs/            训练、推理、路由的配置文件
 data/               数据集（不提交到仓库），data/scripts/ 放下载与预处理脚本
-src/datasets/       SROIE、CORD 的加载与统一字段格式
+src/data/           SROIE、CORD 转换为统一格式（schema.py 定义样本结构）
 src/layoutlm/       LayoutLMv3 训练、推理、置信度输出
 src/vlm/            视觉语言模型的 LoRA 微调与复核
 src/router/         置信度路由
@@ -23,6 +23,7 @@ src/eval/           指标：准确率、F1、平均耗时、大模型调用比�
 experiments/        对比实验与消融实验的配置和结果
 scripts/            一键运行脚本
 notebooks/          探索性分析
+tests/              单元测试（pytest）
 ```
 
 ## 实验设计
@@ -53,6 +54,31 @@ pip install -r requirements.txt
 - CORD：印尼收据，字段更细（菜品、单价、小计等）
 
 数据集和模型权重不提交到仓库，见 `.gitignore`。
+
+### 数据准备
+
+```bash
+# SROIE：把官方数据解压到 data/raw/sroie/{train,test}/{img,box,entities}
+python data/scripts/prepare_data.py sroie
+
+# CORD：自动从 HuggingFace 下载；国内网络可先设置镜像
+# Windows PowerShell:  $env:HF_ENDPOINT="https://hf-mirror.com"
+# macOS:               export HF_ENDPOINT=https://hf-mirror.com
+python data/scripts/prepare_data.py cord
+```
+
+输出在 `data/processed/<数据集>/`：每个划分一个 jsonl、`labels.json`（标签表）、`stats.json`。
+
+**注意**：SROIE 的原始标注只有字段值，没有词级标签，词级标签是脚本按规则自动匹配的。
+运行后务必查看 `stats.json` 里的 `field_label_rate`（每个字段成功标注的比例），
+明显低于 0.9 的字段需要抽查样本、调整匹配规则。论文里也应说明这一预处理步骤。
+
+### 测试
+
+```bash
+pip install pytest
+pytest
+```
 
 ## 进度
 
