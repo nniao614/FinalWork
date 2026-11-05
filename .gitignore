@@ -1,0 +1,29 @@
+# 数据与权重
+data/*
+!data/scripts/
+checkpoints/
+outputs/
+runs/
+wandb/
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.ckpt
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

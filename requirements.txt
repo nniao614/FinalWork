@@ -1,0 +1,15 @@
+# PyTorch 单独安装（Windows 用 cu128 版本），见 README
+transformers>=4.49
+datasets
+accelerate
+peft
+qwen-vl-utils
+seqeval
+pillow
+opencv-python
+albumentations
+numpy
+pandas
+pyyaml
+tqdm
+matplotlib
