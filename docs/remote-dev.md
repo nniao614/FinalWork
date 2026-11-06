@@ -120,3 +120,17 @@ scp win-gpu:/E:/Dev-FinalWork/outputs/某实验/metrics.json .    # Windows → 
 | 终端中文乱码 | 在 PowerShell 执行 `chcp 65001`；或在 Python 里设置 `PYTHONIOENCODING=utf-8` |
 | 台式机睡眠后连不上 | 第 2 步已设置插电不睡眠；若之前改过，重跑第 2 步 |
 | `torch.cuda.is_available()` 为 False | 驱动太旧或装了非 cu128 的 PyTorch。更新驱动，重跑第 5 步 |
+| `Connection closed by 127.0.0.1 port 7890` | SSH 被本机代理（Clash 等）接管了，见下一节 |
+
+## 与代理软件共存（Clash、ClashX、Surge 等）
+
+Tailscale 的地址（`100.64.0.0/10`、`*.ts.net`）必须直连，不能走代理。
+
+1. `~/.ssh/config` 里 `Host win-gpu` 这一段要放在文件**最前面**，并包含 `ProxyCommand none`。
+   ssh 对每个选项只取第一次匹配到的值，写在 `Host *` 后面就会被代理设置覆盖。新版 `setup_mac.sh` 会自动这样写。
+2. 代理软件开了 TUN / 增强模式时，在规则最前面加直连规则：
+   ```yaml
+   - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+   - DOMAIN-SUFFIX,ts.net,DIRECT
+   ```
+3. 查看最终生效的配置：`ssh -G win-gpu | grep -iE '^(hostname|port|proxycommand|proxyjump) '`

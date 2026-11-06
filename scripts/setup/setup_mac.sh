@@ -68,17 +68,25 @@ if [ -n "$WIN_HOST" ] && [ -n "$WIN_USER" ]; then
   if grep -qE "^Host[[:space:]]+$SSH_ALIAS\$" "$CFG"; then
     warn "$CFG 里已有 Host $SSH_ALIAS，未改动。地址变了请手动编辑该文件"
   else
-    cat >> "$CFG" <<EOF
-
+    # 必须写在文件最前面：ssh 对每个选项只取第一次匹配到的值，
+    # 文件里若已有 "Host *" 设置了代理（Clash 等代理软件常这样配），写在后面会被它覆盖。
+    # ProxyCommand none：Tailscale 地址必须直连，不能走本机代理。
+    TMP="$(mktemp)"
+    cat > "$TMP" <<EOF
 Host $SSH_ALIAS
     HostName $WIN_HOST
     User $WIN_USER
+    Port 22
     IdentityFile $KEY
     IdentitiesOnly yes
+    ProxyCommand none
+    ProxyJump none
     ServerAliveInterval 30
     ServerAliveCountMax 6
+
 EOF
-    echo "已添加，之后用 ssh $SSH_ALIAS 连接"
+    cat "$CFG" >> "$TMP" && mv "$TMP" "$CFG" && chmod 600 "$CFG"
+    echo "已添加到 $CFG 开头，之后用 ssh $SSH_ALIAS 连接"
   fi
 
   step "告诉 VS Code 远端是 Windows"
