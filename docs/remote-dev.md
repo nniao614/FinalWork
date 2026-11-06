@@ -5,7 +5,7 @@
 ```
 MacBook（VS Code）  ──SSH──▶  Windows 台式机（RTX 5060 Ti）
   编辑代码、看结果               代码、数据、.venv、训练都在这里
-  本地也有一份仓库和 .venv        %USERPROFILE%\Projects\FinalWork
+  本地也有一份仓库和 .venv        E:\Dev-FinalWork
   （写论文、MPS 推理调试用）
 ```
 
@@ -63,11 +63,11 @@ ssh win-gpu        # 测试：不需要密码就能登进 PowerShell 说明成�
 在第 4 步 SSH 登录进去的窗口里（或 Windows 本机的普通 PowerShell）执行：
 
 ```powershell
-cd $HOME\Downloads   # 换成脚本所在目录
+cd E:\   # 第 2 步下载脚本的位置
 powershell -ExecutionPolicy Bypass -File .\setup_windows_env.ps1
 ```
 
-会克隆仓库到 `%USERPROFILE%\Projects\FinalWork`，用 uv 建 Python 3.11 的 `.venv`，
+会把缓存目录改到 `E:\Dev-cache`、克隆仓库到 `E:\Dev-FinalWork`，用 uv 建 Python 3.11 的 `.venv`，
 安装 CUDA 12.8 版 PyTorch 和项目依赖，最后跑 `check_env.py`。看到显卡型号和 `sm_120` 且没有 [失败] 就对了。
 
 > 第一次 `git clone` 如果仓库是私有的，会弹出 GitHub 登录窗口，这一步要在 Windows 本机上操作一次。
@@ -75,7 +75,7 @@ powershell -ExecutionPolicy Bypass -File .\setup_windows_env.ps1
 ### 第 6 步：VS Code 连上去
 
 1. Mac 上打开 VS Code，按 `Cmd+Shift+P`，输入 **Remote-SSH: Connect to Host**，选 `win-gpu`。
-2. 连接成功后 **File → Open Folder**，打开 `C:\Users\<用户名>\Projects\FinalWork`。
+2. 连接成功后 **File → Open Folder**，打开 `E:\Dev-FinalWork`。
 3. 按 `Cmd+Shift+P` → **Python: Select Interpreter** → 选 `.venv\Scripts\python.exe`。
 4. 远端还需要装一次扩展：左侧扩展栏里，对 Python、Pylance 点“Install in SSH: win-gpu”。
 
@@ -104,8 +104,8 @@ Windows 的 SSH 断开时会结束它启动的所有进程。直接在 VS Code �
 ### 传文件
 
 ```bash
-scp ./某文件 win-gpu:Projects/FinalWork/data/raw/              # Mac → Windows
-scp win-gpu:Projects/FinalWork/outputs/某实验/metrics.json .    # Windows → Mac
+scp ./某文件 win-gpu:/E:/Dev-FinalWork/data/raw/              # Mac → Windows
+scp win-gpu:/E:/Dev-FinalWork/outputs/某实验/metrics.json .    # Windows → Mac
 ```
 
 数据集比较大，建议直接在 Windows 上下载和预处理，不要从 Mac 传。

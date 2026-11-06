@@ -103,7 +103,8 @@ Sample(
   `pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128`
 - 辅助：MacBook M1 Max 64G，用 MPS 做数据处理、推理调试和写论文。
 - **开发方式**：Mac 上用 VS Code Remote-SSH 连接 Windows（SSH 别名 `win-gpu`），代码与训练都在 Windows 的
-  `%USERPROFILE%\Projects\FinalWork`，虚拟环境为项目下的 `.venv`（uv 管理）。配置见 `docs/remote-dev.md`。
+  `E:\Dev-FinalWork`，虚拟环境为项目下的 `.venv`（uv 管理）。uv 缓存、Python、HuggingFace 模型缓存在
+  `E:\Dev-cache`（环境变量 `UV_CACHE_DIR`、`UV_PYTHON_INSTALL_DIR`、`HF_HOME`），不要把大文件写到 C 盘。配置见 `docs/remote-dev.md`。
 - **Windows 上的长时间任务必须用 `scripts\run_bg.ps1` 后台启动**（SSH 断开会结束普通终端里的进程），
   日志在 `logs\`。给用户写运行命令时请按这个方式写。
 - Windows 默认 shell 是 PowerShell，给出的命令要兼容 PowerShell（路径分隔、环境变量写法 `$env:X="..."`）。
