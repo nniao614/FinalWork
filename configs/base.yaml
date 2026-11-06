@@ -32,8 +32,24 @@ vlm:
   max_new_tokens: 256
 
 router:
-  field_confidence: min   # 字段置信度如何由词级概率聚合：min / mean / first
-  threshold: 0.9          # 只能在验证集上调，不能看测试集
-  calibrate: true         # 先做温度缩放校准再路由
+  # 路由网络（主方法）
+  method: rescue_net        # rescue_net（本文）/ error_net / confidence / random / whole_doc
+  target: rescue            # rescue：小模型错且大模型对为正样本；error：小模型错即为正样本
+  features: [hidden, confidence, entropy, field_type, position, consistency]
+  hidden_pool: attention    # 隐藏层向量的池化方式：attention / mean
+  mlp_hidden: 256
+  dropout: 0.1
+  loss: focal               # focal / weighted_bce，用于应对正样本稀少
+  lr: 1.0e-3
+  epochs: 50
+  cv_folds: 5               # 小模型交叉验证折数，用于生成路由训练数据
+  budget: 0.2               # 默认调用预算：最多送 20% 的字段给大模型（实验中会扫描多个预算）
+  # 置信度阈值对照组
+  field_confidence: min     # 字段置信度如何由词级概率聚合：min / mean / first
+  calibrate: true           # 温度缩放校准；对照组需同时报告校准与未校准
+  # 一致性约束
+  consistency:
+    amount_tolerance: 0.01  # 金额比较的容差（相对值）
+    targeted_prompt: true   # 复核时附上不一致信息
 
 output_dir: outputs
