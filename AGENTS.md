@@ -48,6 +48,9 @@ src/router/             置信度路由（待写）
 src/augment/            拍照场景数据增强（待写）
 experiments/            各实验的配置与结果汇总
 scripts/check_env.py    环境检查
+scripts/run_bg.ps1      Windows 上后台运行长任务
+scripts/setup/          Mac / Windows 一键环境配置脚本
+docs/remote-dev.md      远程开发配置说明
 tests/                  pytest 单元测试
 outputs/                训练输出（不入库），由 make_run_dir 创建
 ```
@@ -99,6 +102,11 @@ Sample(
 - 训练：Windows，RTX 5060 Ti 16G（Blackwell，sm_120），**必须用 CUDA 12.8 版本的 PyTorch**：
   `pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128`
 - 辅助：MacBook M1 Max 64G，用 MPS 做数据处理、推理调试和写论文。
+- **开发方式**：Mac 上用 VS Code Remote-SSH 连接 Windows（SSH 别名 `win-gpu`），代码与训练都在 Windows 的
+  `%USERPROFILE%\Projects\FinalWork`，虚拟环境为项目下的 `.venv`（uv 管理）。配置见 `docs/remote-dev.md`。
+- **Windows 上的长时间任务必须用 `scripts\run_bg.ps1` 后台启动**（SSH 断开会结束普通终端里的进程），
+  日志在 `logs\`。给用户写运行命令时请按这个方式写。
+- Windows 默认 shell 是 PowerShell，给出的命令要兼容 PowerShell（路径分隔、环境变量写法 `$env:X="..."`）。
 - 设备选择用 `src.common.get_device()`，不要在代码里写死 `"cuda"`。
 - 路径一律用 `pathlib`，存储的路径用 `/` 分隔，保证 Windows 与 macOS 通用。
 

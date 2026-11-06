@@ -43,7 +43,10 @@ tests/              单元测试（pytest）
 - 训练机：Windows，RTX 5060 Ti 16G（Blackwell 架构，必须使用支持 CUDA 12.8 的 PyTorch）
 - 辅助机：MacBook M1 Max（数据处理、推理、写论文，使用 MPS 后端）
 
-Windows 上安装 PyTorch：
+远程开发（Mac 上用 VS Code 连 Windows 训练）的配置步骤见 [docs/remote-dev.md](docs/remote-dev.md)，
+包含 Mac 和 Windows 的一键配置脚本（`scripts/setup/`）。
+
+Windows 上手动安装 PyTorch：
 
 ```bash
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
