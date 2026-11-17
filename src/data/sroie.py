@@ -86,12 +86,16 @@ def _norm(s: str) -> str:
 
 
 def _match_multiline(value: str, line_texts: List[str]) -> Optional[List[int]]:
-    """找拼起来等于 value 的连续行，返回行下标。"""
+    """找拼起来等于 value 的连续行（精确，失败再模糊），返回行下标。"""
+    return _match_lines_exact(value, line_texts) or _match_lines_fuzzy(value, line_texts)
+
+
+def _match_lines_exact(value: str, line_texts: List[str]) -> Optional[List[int]]:
+    """找拼起来恰好等于 value 的连续整行，返回行下标。"""
     target = _norm(value)
     if not target:
         return None
     normed = [_norm(t) for t in line_texts]
-    best: Optional[List[int]] = None
     for i, li in enumerate(normed):
         if not li or not target.startswith(li):
             continue
@@ -106,7 +110,67 @@ def _match_multiline(value: str, line_texts: List[str]) -> Optional[List[int]]:
             j += 1
         if acc == target:
             return idxs
+    return None
 
+
+def _match_words_exact(value: str, words: List[str]) -> Optional[List[int]]:
+    """找拼起来恰好等于 value 的连续词（可从一行中间开始、跨行），返回第一处的词下标。
+
+    用于字段值只是某一行一部分的情况，例如
+    “AEON CO. (M) BHD (126926-H)” 里的公司名不含注册号，
+    “DIMILIKI: BANH MI CAFE SDN BHD 1110644-W” 里的公司名前后都有别的词。
+    """
+    target = _norm(value)
+    if not target:
+        return None
+    nw = [_norm(w) for w in words]
+    for i in range(len(nw)):
+        if not nw[i] or not target.startswith(nw[i]):
+            continue
+        acc = ""
+        for j in range(i, len(nw)):
+            if not target.startswith(acc + nw[j]):
+                break
+            acc += nw[j]
+            if acc == target:
+                return list(range(i, j + 1))
+    return None
+
+
+def _match_words_fuzzy(value: str, words: List[str]) -> Optional[List[int]]:
+    """逐词的模糊匹配：在连续词窗口里找与 value 相似度最高且不低于阈值的一段。
+
+    只在整行精确、逐词精确、整行模糊都失败时使用，处理“字段只占一行的一部分，
+    且 OCR 有个别字符错误”的情况（如 “BOOK TA .K(TAMAN DAYA) SDN BND 789417-W”）。
+    """
+    target = _norm(value)
+    if not target:
+        return None
+    nw = [_norm(w) for w in words]
+    best, best_ratio = None, 0.0
+    for i in range(len(nw)):
+        if not nw[i]:
+            continue
+        acc = ""
+        for j in range(i, len(nw)):
+            acc += nw[j]
+            if len(acc) > 1.3 * len(target):
+                break
+            if len(acc) < 0.7 * len(target):
+                continue
+            r = SequenceMatcher(None, acc, target, autojunk=False).ratio()
+            if r > best_ratio:  # 严格大于：相似度相同时保留更靠前的一处
+                best_ratio, best = r, list(range(i, j + 1))
+    return best if best_ratio >= FUZZY_THRESHOLD else None
+
+
+def _match_lines_fuzzy(value: str, line_texts: List[str]) -> Optional[List[int]]:
+    """整行的模糊匹配，返回行下标。"""
+    target = _norm(value)
+    if not target:
+        return None
+    normed = [_norm(t) for t in line_texts]
+    best: Optional[List[int]] = None
     # 兜底：OCR 文本与标注常有个别字符不同（如 BND / BHD），
     # 在 1～6 行的连续窗口里找相似度最高的一段
     best_ratio = 0.0
@@ -203,9 +267,23 @@ def convert_one(
     spans = []
     for key in ["company", "address"]:
         if key in entities:
-            li = _match_multiline(entities[key], line_texts)
+            # 顺序：整行精确 → 逐词精确 → 整行模糊 → 逐词模糊。
+            # 精确匹配优先，避免模糊匹配把同一行里的注册号等多余的词也标进字段。
+            value = entities[key]
+            idxs: Optional[List[int]] = None
+            li = _match_lines_exact(value, line_texts)
             if li:
-                spans.append((key.upper(), [w for l in li for w in line_word_idx[l]]))
+                idxs = [w for l in li for w in line_word_idx[l]]
+            if not idxs:
+                idxs = _match_words_exact(value, words)
+            if not idxs:
+                li = _match_lines_fuzzy(value, line_texts)
+                if li:
+                    idxs = [w for l in li for w in line_word_idx[l]]
+            if not idxs:
+                idxs = _match_words_fuzzy(value, words)
+            if idxs:
+                spans.append((key.upper(), idxs))
     for key in ["date", "total"]:
         if key in entities:
             wi = _match_value_words(
