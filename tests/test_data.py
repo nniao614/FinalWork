@@ -175,3 +175,28 @@ def test_decode_image_bytes_truncated():
 
 def test_decode_image_bytes_garbage():
     assert decode_image_bytes(b"not an image at all") is None
+
+
+def test_sroie_company_inside_line():
+    """公司名只占一行的一部分（前后带注册号或其他词）时，应逐词匹配，只标公司名本身。"""
+    from src.data.sroie import convert_one
+
+    def run(lines, company):
+        boxes = [[0, i * 20, 400, i * 20 + 15] for i in range(len(lines))]
+        s = convert_one("x", "train", "x.jpg", 400, 400, list(zip(lines, boxes)),
+                        {"company": company, "total": "9.00"})
+        return [w for w, l in zip(s.words, s.labels) if l.endswith("COMPANY")]
+
+    # 后面带注册号
+    assert run(["AEON CO. (M) BHD (126926-H)", "TOTAL 9.00"], "AEON CO. (M) BHD") == \
+        ["AEON", "CO.", "(M)", "BHD"]
+    # 前面有“DIMILIKI:”、后面有注册号；第一行只有部分公司名，不应被选中
+    assert run(["BANH MI CAFE", "DIMILIKI: BANH MI CAFE SDN BHD 1110644-W", "TOTAL 9.00"],
+               "BANH MI CAFE SDN BHD") == ["BANH", "MI", "CAFE", "SDN", "BHD"]
+    # 整行恰好等于公司名时，行为与原来一致
+    assert run(["99 SPEED MART S/B", "TOTAL 9.00"], "99 SPEED MART S/B") == \
+        ["99", "SPEED", "MART", "S/B"]
+    # 一行的一部分且 OCR 有个别错字（BND/BHD）：逐词模糊匹配，不把注册号标进去
+    got = run(["BOOK TA .K(TAMAN DAYA) SDN BND 789417-W", "TOTAL 9.00"],
+              "BOOK TA .K (TAMAN DAYA) SDN BHD")
+    assert got[-1] == "BND" and "789417-W" not in got
