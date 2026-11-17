@@ -30,13 +30,34 @@ vlm:
   batch_size: 1
   grad_accum: 8
   max_new_tokens: 256
+  max_pixels: 802816        # 1024*28*28，控制图像分辨率以适配 16G 显存
+  prompt_version: v1        # 改提示模板就改版本号，缓存随之失效
+  label_cv_folds: 2         # 生成训练集路由标签时 LoRA 的交叉验证折数（见 docs/algorithm.md 3.4）
 
 router:
-  # 路由网络（主方法）
-  method: rescue_net        # rescue_net（本文）/ error_net / confidence / random / whole_doc
+  # 路由网络（主方法），实现规格见 docs/algorithm.md 第 4 节
+  method: rescue_net        # rescue_net（本文）/ error_net / confidence / confidence_calibrated / random / whole_doc / oracle
   target: rescue            # rescue：小模型错且大模型对为正样本；error：小模型错即为正样本
-  features: [hidden, confidence, entropy, field_type, position, consistency]
-  hidden_pool: attention    # 隐藏层向量的池化方式：attention / mean
+  features: [hidden, label_probs, confidence, entropy, field_type, position, consistency]
+  fields_to_route: auto     # auto：训练集中至少出现在 min_field_docs 张票据里的字段；也可写字段列表
+  min_field_docs: 50
+  pool: dual                # span（只用片段路径）/ global（只用全局路径）/ dual（两路都用）
+  fusion: gate              # gate（门控融合）/ concat（直接拼接，消融用）
+  proj_dim: 256             # 隐藏层向量投影维度 d
+  field_emb_dim: 16
+  focal_gamma: 2.0
+  focal_alpha: 0.25         # 在验证集上从 {0.25, 0.5, 0.75} 中选
+  select_metric: auprc      # 早停与选参指标
+  budgets: [0.0, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0]
+  # 特征层面模拟错误（docs/algorithm.md 第 6 节），只用于训练
+  simulate:
+    enabled: true
+    ratio: 1.0              # 模拟单元数 = ratio × 真实正样本数
+    ops: [shrink, expand, swap, drop, mix]
+  # 扩展三：用 OCR 结果约束大模型修正，默认关闭
+  ocr_guard:
+    enabled: false
+    max_norm_edit: 0.3
   mlp_hidden: 256
   dropout: 0.1
   loss: focal               # focal / weighted_bce，用于应对正样本稀少
