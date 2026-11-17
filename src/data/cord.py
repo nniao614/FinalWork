@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -25,6 +26,34 @@ from typing import Dict, List, Optional
 from .schema import Sample, quad_to_xyxy, spans_to_bio
 
 HF_NAME = "naver-clova-ix/cord-v2"
+
+
+def decode_image_bytes(data: bytes):
+    """把图像字节解码成 RGB 的 PIL 图像；彻底无法解码时返回 None。
+
+    先按正常方式解码；失败时（例如 JPEG 末尾被截断、数据流损坏）再用
+    PIL 的容忍截断模式重试一次，能救回只缺结尾的图片。仍失败则返回 None，
+    由调用方跳过该样本并记录，不让整个数据准备流程中断。
+    """
+    from PIL import Image, ImageFile
+
+    def _open():
+        with Image.open(io.BytesIO(data)) as im:
+            im.load()
+            return im.convert("RGB")
+
+    try:
+        return _open()
+    except (OSError, SyntaxError, ValueError):
+        pass
+    old = ImageFile.LOAD_TRUNCATED_IMAGES
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
+    try:
+        return _open()
+    except (OSError, SyntaxError, ValueError):
+        return None
+    finally:
+        ImageFile.LOAD_TRUNCATED_IMAGES = old
 
 
 def convert_record(
@@ -71,19 +100,38 @@ def convert_record(
 def load_cord(
     split: str, img_dir: Path, data_root: Path, hf_name: str = HF_NAME,
     cache_dir: Optional[str] = None, label_keys: bool = False,
+    force_redownload: bool = False, skipped: Optional[List[str]] = None,
 ) -> List[Sample]:
     """从 HuggingFace 读取并把图像落盘到 img_dir；image_path 记录为相对 data_root 的路径。
 
     hf_name 也可以是本地目录（例如手动下载的 parquet 文件夹）。
+    图像自己解码（见 `decode_image_bytes`）：无法解码的样本会被跳过，
+    其 id 追加到 `skipped` 列表里，由调用方写进 stats.json，论文中需如实说明。
+    样本 id 按原始顺序编号，跳过某张不会改变其余样本的 id。
     """
+    from datasets import Image as HFImage
     from datasets import load_dataset
 
-    ds = load_dataset(hf_name, split=split, cache_dir=cache_dir)
+    ds = load_dataset(
+        hf_name, split=split, cache_dir=cache_dir,
+        download_mode="force_redownload" if force_redownload else None,
+    )
+    # 关闭自动解码，拿到原始字节自己解码，避免一张坏图让整个迭代抛异常
+    ds = ds.cast_column("image", HFImage(decode=False))
     img_dir.mkdir(parents=True, exist_ok=True)
     samples = []
     for i, rec in enumerate(ds):
         sid = f"cord_{split}_{i:04d}"
-        image = rec["image"].convert("RGB")
+        raw = rec["image"]
+        data = raw.get("bytes")
+        if data is None and raw.get("path"):
+            data = Path(raw["path"]).read_bytes()
+        image = decode_image_bytes(data) if data else None
+        if image is None:
+            print(f"[警告] {sid} 的图像无法解码，已跳过")
+            if skipped is not None:
+                skipped.append(sid)
+            continue
         img_path = img_dir / f"{sid}.jpg"
         if not img_path.exists():
             image.save(img_path, quality=95)

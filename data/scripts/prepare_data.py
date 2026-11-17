@@ -41,11 +41,14 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--label-keys", action="store_true",
                     help="CORD：把 is_key 的提示词也标成实体（默认标 O）")
+    ap.add_argument("--force-redownload", action="store_true",
+                    help="CORD：忽略本地缓存重新下载（怀疑下载不完整时使用）")
     args = ap.parse_args()
 
     data_dir = args.data_dir.resolve()
     out_dir = data_dir / "processed" / args.dataset
     by_split = {}
+    skipped: dict = {}
 
     if args.dataset == "sroie":
         from src.data.sroie import load_sroie
@@ -63,16 +66,22 @@ def main() -> None:
     else:
         from src.data.cord import HF_NAME, load_cord
         for split in ["train", "validation", "test"]:
+            skipped[split] = []
             by_split[split] = load_cord(
                 split, img_dir=out_dir / "images", data_root=data_dir,
                 hf_name=args.hf_name or HF_NAME, cache_dir=args.cache_dir,
-                label_keys=args.label_keys,
+                label_keys=args.label_keys, force_redownload=args.force_redownload,
+                skipped=skipped[split],
             )
 
     stats = {}
     for split, samples in by_split.items():
         n = save_jsonl(samples, out_dir / f"{split}.jsonl")
         stats[split] = dataset_stats(samples)
+        if skipped.get(split):
+            # 图像损坏而跳过的样本，论文的数据集一节需要说明
+            stats[split]["skipped_images"] = skipped[split]
+            print(f"[{args.dataset}] {split}: 跳过 {len(skipped[split])} 张无法解码的图像：{skipped[split]}")
         print(f"[{args.dataset}] {split}: {n} 条")
     labels = save_label_list(by_split, out_dir / "labels.json")
     (out_dir / "stats.json").write_text(

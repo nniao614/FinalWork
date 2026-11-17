@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from src.data.cord import convert_record
+from src.data.cord import convert_record, decode_image_bytes
 from src.data.io import dataset_stats, load_jsonl, save_jsonl, save_label_list
 from src.data.schema import Sample, normalize_box, spans_to_bio
 from src.data.sroie import load_sroie, parse_box_file, split_line
@@ -147,3 +147,31 @@ def test_length_mismatch_raises():
     except ValueError:
         return
     raise AssertionError("应当报错")
+
+
+def _jpeg_bytes() -> bytes:
+    import io
+    import random
+    # 用带随机噪声的图，让图像数据远大于文件头，截断时截掉的是图像数据而不是文件头
+    rnd = random.Random(0)
+    im = Image.new("RGB", (64, 48))
+    im.putdata([(rnd.randrange(256), rnd.randrange(256), rnd.randrange(256)) for _ in range(64 * 48)])
+    buf = io.BytesIO()
+    im.save(buf, format="JPEG", quality=90)
+    return buf.getvalue()
+
+
+def test_decode_image_bytes_normal():
+    im = decode_image_bytes(_jpeg_bytes())
+    assert im is not None and im.size == (64, 48) and im.mode == "RGB"
+
+
+def test_decode_image_bytes_truncated():
+    # 去掉 JPEG 结尾一部分，模拟下载不完整或数据集中的截断图片：应能用容忍模式救回
+    data = _jpeg_bytes()
+    im = decode_image_bytes(data[: int(len(data) * 0.7)])
+    assert im is not None and im.size == (64, 48)
+
+
+def test_decode_image_bytes_garbage():
+    assert decode_image_bytes(b"not an image at all") is None
