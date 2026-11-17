@@ -31,6 +31,29 @@ def load_config(path: str | Path, overrides: Optional[Dict[str, Any]] = None) ->
     return cfg
 
 
+def parse_cli(argv: Optional[list] = None) -> tuple:
+    """解析入口脚本的命令行：`--config xxx.yaml a.b=1 c=null ...`。
+
+    返回 (配置文件路径, 覆盖项字典)。覆盖项的值用 yaml 解析，
+    所以 `8` 是整数、`null` 是 None、`[a, b]` 是列表、`true` 是布尔值。
+    """
+    import argparse
+
+    import yaml
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", required=True, help="配置文件路径")
+    parser.add_argument("overrides", nargs="*", help="形如 a.b=值 的覆盖项")
+    args = parser.parse_args(argv)
+    overrides: Dict[str, Any] = {}
+    for item in args.overrides:
+        if "=" not in item:
+            raise ValueError(f"覆盖项必须形如 key=value：{item}")
+        key, value = item.split("=", 1)
+        overrides[key.strip()] = yaml.safe_load(value) if value != "" else ""
+    return args.config, overrides
+
+
 def _deep_merge(base: dict, new: dict) -> dict:
     out = dict(base)
     for k, v in new.items():

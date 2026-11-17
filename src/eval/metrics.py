@@ -58,18 +58,28 @@ def decode_bio(
     return out
 
 
-def spans_to_fields(spans: Dict[str, List[dict]], single_value: Sequence[str] = ()) -> Fields:
-    """实体片段转字段值。single_value 里的字段（如 SROIE 的四个字段）只保留一个值：
-    选平均置信度最高的片段，没有置信度时选最长的。"""
-    fields: Fields = {}
+def select_spans(
+    spans: Dict[str, List[dict]], single_value: Sequence[str] = ()
+) -> Dict[str, List[dict]]:
+    """按字段选择最终保留的片段（保留片段的全部信息，包括词下标）。
+
+    single_value 里的字段（如 SROIE 的四个字段）只保留一个片段：
+    选平均置信度最高的片段，没有置信度时选最长的。其余字段保留全部片段。
+    """
+    out: Dict[str, List[dict]] = {}
     for ent, ss in spans.items():
         if ent in single_value and len(ss) > 1:
             def key(s):
                 sc = s.get("scores") or []
                 return (sum(sc) / len(sc) if sc else 0.0, len(s["text"]))
             ss = [max(ss, key=key)]
-        fields[ent] = [s["text"] for s in ss]
-    return fields
+        out[ent] = list(ss)
+    return out
+
+
+def spans_to_fields(spans: Dict[str, List[dict]], single_value: Sequence[str] = ()) -> Fields:
+    """实体片段转字段值。单值字段的选择规则见 `select_spans`。"""
+    return {ent: [s["text"] for s in ss] for ent, ss in select_spans(spans, single_value).items()}
 
 
 def canonicalize(field: str, value: str) -> str:

@@ -1,0 +1,11 @@
+# LayoutLMv3 在 SROIE 上的训练与推理（里程碑 M1）
+# 训练：python -m src.layoutlm.train --config configs/layoutlm_sroie.yaml
+# 试跑：python -m src.layoutlm.train --config configs/layoutlm_sroie.yaml data.limit=8 layoutlm.epochs=1
+_base_: base.yaml
+
+data:
+  dataset: sroie
+
+layoutlm:
+  # SROIE 每张票据每个字段只有一个值：预测出多个片段时取平均置信度最高的一个
+  single_value_fields: [COMPANY, DATE, ADDRESS, TOTAL]
