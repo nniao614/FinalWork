@@ -41,7 +41,7 @@
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | 准备 | 项目骨架、统一数据格式、评估指标、配置与工具、测试与 CI、远程开发环境、算法规格文档 | 已完成 |
-| 第 1～3 周（11/9～11/29） | M1～M3：数据准备；LayoutLMv3 训练与推理（保存所有词的隐藏层向量与词级 logits）；5 折交叉验证预测；单元构造与错误类型；统一计时与显存测量 | 未开始 |
+| 第 1～3 周（11/9～11/29） | M1～M3：数据准备；LayoutLMv3 训练与推理（保存所有词的隐藏层向量与词级 logits）；5 折交叉验证预测；单元构造与错误类型；统一计时与显存测量 | 进行中：M1 已完成（验证集 micro F1：SROIE 0.9344、CORD 0.9758，见 `experiments/m1_layoutlm/summary.md`）；M2、M3 未开始 |
 | 第 4～6 周（11/30～12/20） | M4～M5：Qwen2.5-VL 零样本与 LoRA（含 2 折 LoRA）；字段复核接口（独立抽取，支持定向提示）；在交叉验证数据上跑大模型生成路由标签 | 未开始 |
 | 第 7～10 周（12/21～1/17） | M6～M8：一致性约束；路由网络训练；特征层面模拟错误；全部对照组与消融实验；错误类型分析 | 未开始 |
 | 第 11～13 周（1/18～2/7） | M9：拍照增强、重新 OCR 的端到端测试集、难样本扩充、鲁棒性实验 | 未开始 |
@@ -62,7 +62,7 @@ src/data/               数据集 → 统一格式 Sample（已完成）
   cord.py               CORD v2 解析
   io.py                 jsonl 读写、标签表、训练/验证切分、标注率统计
 src/eval/               评估：metrics.py（已完成，待补充改对/改错指标）、error_types.py、timing.py、plots.py
-src/layoutlm/           LayoutLMv3：dataset / train / cv / infer（待写）
+src/layoutlm/           LayoutLMv3：windows / dataset / train / infer（M1 已完成）；cv（M2，待写）
 src/vlm/                视觉语言模型：prompts / parse / sft / review / cache（待写）
 src/router/             路由：units / consistency / simulate / model / train / baselines / pipeline（待写）
 src/augment/            拍照场景增强与重新 OCR：photo / reocr（待写）
@@ -138,6 +138,10 @@ Sample(
 10. **复核提示不得包含小模型的预测值**（独立抽取），否则大模型结果依赖小模型输出，缓存结果不能复用于模拟错误样本。
     定向提示只描述不一致的类型（如“小计+税与总额不符”），不给出具体的小模型答案。
 11. **超长票据**：超过 512 个子词时要切窗口（stride 128），合并时每个词取离窗口边缘最远的那个窗口的结果。
+12. **transformers v5 分词器的窗口标签**：窗口从一个词的中间开始时，transformers v5 的分词器会给窗口开头的后续子词也打标签
+    （它按“与前一个词元属于不同的词”判断，遇到特殊符号会重置）。推理合并时靠“离边缘距离 + 距离相同取较早窗口”
+    选到真正的第一个子词（见 `src/layoutlm/windows.py` 及其单元测试）；训练中会有少量标签噪声，仅涉及超长票据。
+    项目把 transformers 固定为 5.22.1，升级前需要重新确认这一行为。
 
 ## 7. 环境
 

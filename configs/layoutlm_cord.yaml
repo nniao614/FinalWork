@@ -1,0 +1,10 @@
+# LayoutLMv3 在 CORD 上的训练与推理（里程碑 M1）
+# 训练：python -m src.layoutlm.train --config configs/layoutlm_cord.yaml
+# CORD 所有字段都保留全部预测片段，按多重集合评估（single_value_fields 为空）
+_base_: base.yaml
+
+data:
+  dataset: cord
+
+layoutlm:
+  single_value_fields: []

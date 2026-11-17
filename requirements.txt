@@ -1,5 +1,5 @@
 # PyTorch 单独安装（Windows 用 cu128 版本），见 README
-transformers>=4.49
+transformers==5.22.1
 datasets
 accelerate
 peft

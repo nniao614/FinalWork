@@ -48,3 +48,11 @@ def test_field_prf_multiset():
 def test_routing_summary():
     r = routing_summary(100, 15, [0.1, 0.2, 0.3, 1.0])
     assert r["vlm_call_ratio"] == 0.15 and r["avg_latency_s"] == 0.4
+
+
+def test_select_spans_keeps_idxs_and_matches_spans_to_fields():
+    from src.eval.metrics import select_spans
+    spans = decode_bio(["9.00", "x", "10.00"], ["B-TOTAL", "O", "B-TOTAL"], [0.6, 0, 0.95])
+    sel = select_spans(spans, single_value=["TOTAL"])
+    assert [s["idxs"] for s in sel["TOTAL"]] == [[2]]
+    assert len(select_spans(spans)["TOTAL"]) == 2
